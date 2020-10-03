@@ -24,6 +24,10 @@
     "url": "https://github.com/themost-framework/themost-adapters/issues"
   },
   "homepage": "https://github.com/themost-framework/themost-adapters",
+  "peerDependencies": {
+    "@themost/common": ">=2.5.0 < 3",
+    "@themost/query": ">=2.5.0 < 3"
+  },
   "dependencies": {
     "async": "0.2.10",
     "lodash": "^4.17.4"
@@ -31,10 +35,12 @@
   "devDependencies": {
     "@themost/common": ">=2.5.0 < 3",
     "@themost/query": ">=2.5.0 < 3",
+    "@themost/sqlite": "^2.5.1",
+    "@types/jasmine": "^3.5.14",
     "dotenv": "^8.2.0",
-    "jasmine": "^3.5.0",
-    "jasmine-spec-reporter": "^5.0.2",
     "eslint": "^6.8.0",
-    "eslint-plugin-node": "^11.1.0"
+    "eslint-plugin-node": "^11.1.0",
+    "jasmine": "^3.5.0",
+    "jasmine-spec-reporter": "^5.0.2"
   }
 }

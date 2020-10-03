@@ -3,6 +3,17 @@
         "eslint:recommended",
         "plugin:node/recommended"
     ],
+    "globals": {
+        "describe": false,
+        "it": false,
+        "fit": false,
+        "beforeEach": false,
+        "afterEach": false,
+        "beforeAll": false,
+        "afterAll": false,
+        "expect": false,
+        "jasmine": false
+    },
     "parserOptions": {
         "ecmaVersion": 2020
     },

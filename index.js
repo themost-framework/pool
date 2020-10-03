@@ -1,7 +1,7 @@
 // MOST Web Framework 2.0 Codename Blueshift Copyright (c) 2017-2020 THEMOST LP
 const _ = require('lodash');
 const async = require('async');
-const {TraceUtils} = require('@themost/common');
+const { TraceUtils } = require('@themost/common');
 
 const HASH_CODE_LENGTH = 24;
 const getConfigurationMethod = Symbol('getConfiguration');
@@ -14,7 +14,7 @@ const pools = Symbol('pools');
  * @returns {*}
  */
 function randomInt(min, max) {
-    return Math.floor(Math.random()*max) + min;
+    return Math.floor(Math.random() * max) + min;
 }
 
 function randomString(length) {
@@ -22,8 +22,8 @@ function randomString(length) {
     length = length || 16;
     const chars = "abcdefghkmnopqursuvwxz2456789ABCDEFHJKLMNPQURSTUVWXYZ";
     let str = "";
-    for(let i = 0; i < length; i++) {
-        str += chars.substr(randomInt(0, chars.length-1),1);
+    for (let i = 0; i < length; i++) {
+        str += chars.substr(randomInt(0, chars.length - 1), 1);
     }
     return str;
 }
@@ -42,7 +42,7 @@ function log(data) {
 }
 
 function debug(data) {
-    if (process.env.NODE_ENV==='development')
+    if (process.env.NODE_ENV === 'development')
         log(data);
 }
 
@@ -54,12 +54,12 @@ class PoolDictionary {
     constructor() {
         let _length = 0;
         Object.defineProperty(this, 'length', {
-            get: function() {
+            get: function () {
                 return _length;
             },
-            set: function(value) {
+            set: function (value) {
                 _length = value;
-            }, configurable:false, enumerable:false
+            }, configurable: false, enumerable: false
         });
     }
 
@@ -88,7 +88,7 @@ class PoolDictionary {
 
     clear() {
         const self = this, keys = _.keys(this);
-        _.forEach(keys, function(x) {
+        _.forEach(keys, function (x) {
             if (Object.prototype.hasOwnProperty.call(self, x)) {
                 delete self[x];
                 self.length -= 1;
@@ -98,7 +98,7 @@ class PoolDictionary {
     }
 
     unshift() {
-        for(const key in this) {
+        for (const key in this) {
             if (Object.prototype.hasOwnProperty.call(this, key)) {
                 const value = this[key];
                 delete this[key];
@@ -119,7 +119,7 @@ class DataPool {
      * @param {*=} options
      */
     constructor(options) {
-        this.options = Object.assign({ size:20, reserved:2, timeout:30000, lifetime:1200000 }, options);
+        this.options = Object.assign({ size: 20, reserved: 2, timeout: 30000, lifetime: 1200000 }, options);
         /**
          * A collection of objects which represents the available pooled data adapters.
          */
@@ -132,7 +132,7 @@ class DataPool {
          * An array of listeners that are currently waiting for a pooled data adapter.
          * @type {Function[]}
          */
-        this.listeners = [ ];
+        this.listeners = [];
         //set default state to active
         this.state = 'active';
 
@@ -165,8 +165,8 @@ class DataPool {
         if (typeof dataConfiguration.getAdapterType !== 'function') {
             throw new TypeError('Data configuration adapter getter must be a function.');
         }
-        let adapter = dataConfiguration.adapters.find((x)=> {
-           return x.name === this.options.adapter;
+        let adapter = dataConfiguration.adapters.find((x) => {
+            return x.name === this.options.adapter;
         });
         if (_.isNil(adapter)) {
             throw new TypeError('Child data adapter cannot be found.');
@@ -183,24 +183,24 @@ class DataPool {
             const self = this;
             self.state = 'paused';
             const keys = _.keys(self.available);
-            async.eachSeries(keys, function(key,cb) {
+            async.eachSeries(keys, function (key, cb) {
                 const item = self.available[key];
-               if (typeof item === 'undefined' || item === null) { return cb(); }
+                if (typeof item === 'undefined' || item === null) { return cb(); }
                 if (typeof item.close === 'function') {
-                    item.close(function() {
+                    item.close(function () {
                         cb();
                     });
                 }
-            }, function(err) {
+            }, function (err) {
                 callback(err);
                 //clear available collection
-                _.forEach(keys, function(key) {
+                _.forEach(keys, function (key) {
                     delete self.available[key];
                 });
                 self.state = 'active';
             });
         }
-        catch(e) {
+        catch (e) {
             callback(e);
         }
     }
@@ -215,20 +215,20 @@ class DataPool {
         const self = this;
         const keys = _.keys(self.inUse);
         let newObj;
-        if (keys.length===0) { return callback(); }
-        if (self.options.lifetime>0) {
+        if (keys.length === 0) { return callback(); }
+        if (self.options.lifetime > 0) {
             const nowTime = (new Date()).getTime();
-            async.eachSeries(keys, function(hashCode,cb) {
+            async.eachSeries(keys, function (hashCode, cb) {
                 const obj = self.inUse[hashCode];
                 if (typeof obj === 'undefined' || obj === null) {
                     return cb();
                 }
-                if (nowTime>(obj.createdAt.getTime()+self.options.lifetime)) {
+                if (nowTime > (obj.createdAt.getTime() + self.options.lifetime)) {
                     if (typeof obj.close !== 'function') {
                         return cb();
                     }
                     //close data adapter (the client which is using this adapter may get an error for this, but this data adapter has been truly timed out)
-                    obj.close(function() {
+                    obj.close(function () {
                         //create new object (data adapter)
                         newObj = self.createObject();
                         //add createdAt property
@@ -246,7 +246,7 @@ class DataPool {
                 else {
                     cb();
                 }
-            }, function(res) {
+            }, function (res) {
                 if (res instanceof Error) {
                     callback(res);
                 }
@@ -269,13 +269,13 @@ class DataPool {
         let timeout;
         let newObj;
         //register a connection pool timeout
-        timeout = setTimeout(function() {
+        timeout = setTimeout(function () {
             //throw timeout exception
             const er = new Error('Connection pool timeout.');
             er.code = 'EPTIMEOUT';
             callback(er);
         }, self.options.timeout);
-        self.listeners.push(function(releasedObj) {
+        self.listeners.push(function (releasedObj) {
             //clear timeout
             if (timeout) {
                 clearTimeout(timeout);
@@ -288,7 +288,7 @@ class DataPool {
                 return callback(null, releasedObj);
             }
             const keys = _.keys(self.available);
-            if (keys.length>0) {
+            if (keys.length > 0) {
                 const key = keys[0];
                 //get connection from available connections
                 const pooledObj = self.available[key];
@@ -320,7 +320,7 @@ class DataPool {
     newObject(callback) {
         const self = this;
         let newObj;
-        for(const key in self.available) {
+        for (const key in self.available) {
             if (Object.prototype.hasOwnProperty.call(self.available, key)) {
                 //get available object
                 newObj = self.available[key];
@@ -352,7 +352,7 @@ class DataPool {
      */
     getObject(callback) {
         const self = this;
-        callback = callback || function() {};
+        callback = callback || function () { };
 
         if (self.state !== 'active') {
             const er = new Error('Connection refused due to pool state.');
@@ -363,17 +363,17 @@ class DataPool {
         debug(`(DataPool): Connections in use: ${inUseKeys.length}`);
         if ((inUseKeys.length < self.options.size) || (self.options.size === 0)) {
             debug("(DataPool): Creating new object in data pool.");
-            self.newObject(function(err, result) {
+            self.newObject(function (err, result) {
                 if (err) { return callback(err); }
                 return callback(null, result);
             });
         }
         else {
-            self.queryLifetimeForObject(function(err, result) {
+            self.queryLifetimeForObject(function (err, result) {
                 if (err) { return callback(err); }
                 if (result) { return callback(null, result); }
                 debug("(DataPool): Waiting for an object from data pool.");
-                self.waitForObject(function(err, result) {
+                self.waitForObject(function (err, result) {
                     if (err) { return callback(err); }
                     callback(null, result);
                 });
@@ -388,7 +388,7 @@ class DataPool {
      */
     releaseObject(obj, callback) {
         const self = this;
-        callback = callback || function() {};
+        callback = callback || function () { };
         if (typeof obj === 'undefined' || obj === null) {
             return callback();
         }
@@ -415,7 +415,7 @@ class DataPool {
                             //call listener without any parameter
                             listener.call(self);
                         }
-                        catch(e) {
+                        catch (e) {
                             log('An error occured while trying to release an unknown data adapter');
                             log(e);
                             //call listener without any parameter
@@ -439,7 +439,7 @@ class DataPool {
             //finally exit
             callback();
         }
-        catch(e) {
+        catch (e) {
             callback(e);
         }
     }
@@ -459,9 +459,9 @@ class PoolAdapter {
         this.options = options;
         const self = this;
         Object.defineProperty(this, 'pool', {
-            get: function() {
+            get: function () {
                 return DataPool[pools][self.options.pool];
-            }, configurable:false, enumerable:false
+            }, configurable: false, enumerable: false
         });
     }
 
@@ -482,7 +482,7 @@ class PoolAdapter {
             return self.base.open(callback);
         }
         else {
-            self.pool.getObject(function(err, result) {
+            self.pool.getObject(function (err, result) {
                 if (err) { return callback(err); }
                 self.base = result;
                 //add lastIdentity()
@@ -511,10 +511,10 @@ class PoolAdapter {
      * @param callback {function(Error=)}
      */
     close(callback) {
-        callback = callback || function() {};
+        callback = callback || function () { };
         const self = this;
         if (self.base) {
-            self.pool.releaseObject(self.base,callback);
+            self.pool.releaseObject(self.base, callback);
             if (typeof self.lastIdentity === 'function') {
                 delete self.lastIdentity;
             }
@@ -536,7 +536,7 @@ class PoolAdapter {
      */
     execute(query, values, callback) {
         const self = this;
-        self.open(function(err) {
+        self.open(function (err) {
             if (err) { return callback(err); }
             self.base.execute(query, values, callback);
         });
@@ -559,12 +559,12 @@ class PoolAdapter {
      */
     selectIdentity(entity, attribute, callback) {
         const self = this;
-        self.open(function(err) {
+        self.open(function (err) {
             if (err) { return callback(err); }
             if (typeof self.base.selectIdentity !== 'function') {
                 return callback(new Error('This method is not yet implemented. The base DataAdapter object does not implement this method..'));
             }
-            self.base.selectIdentity(entity, attribute , callback);
+            self.base.selectIdentity(entity, attribute, callback);
         });
     }
 
@@ -576,7 +576,7 @@ class PoolAdapter {
      */
     createView(name, query, callback) {
         const self = this;
-        self.open(function(err) {
+        self.open(function (err) {
             if (err) { return callback(err); }
             self.base.createView(name, query, callback);
         });
@@ -589,7 +589,7 @@ class PoolAdapter {
      */
     executeInTransaction(fn, callback) {
         const self = this;
-        self.open(function(err) {
+        self.open(function (err) {
             if (err) { return callback(err); }
             self.base.executeInTransaction(fn, callback);
         });
@@ -602,7 +602,7 @@ class PoolAdapter {
      */
     migrate(obj, callback) {
         const self = this;
-        self.open(function(err) {
+        self.open(function (err) {
             if (err) { return callback(err); }
             self.base.migrate(obj, callback);
         });
@@ -638,33 +638,33 @@ function createInstance(options) {
      * @type {DataPool}
      */
     let pool = DataPool[pools][name];
-    if (typeof pool === 'undefined' || pool === null) {
+    if (pool == null) {
         //create new pool with the name specified in options
         DataPool[pools][name] = new DataPool(options);
     }
-    return new PoolAdapter({ pool:name });
+    return new PoolAdapter({ pool: name });
 }
 
-process.on('exit', function() {
+process.on('exit', function () {
     if (_.isNil(DataPool[pools])) { return; }
     try {
         const keys = _.keys(DataPool[pools]);
-        _.forEach(keys, function(x) {
+        _.forEach(keys, function (x) {
             try {
                 log(`Cleaning up data pool (${x})`);
                 if (typeof DataPool[pools][x] === 'undefined' || DataPool[pools][x] === null) { return; }
                 if (typeof DataPool[pools][x].cleanup === 'function') {
-                    DataPool[pools][x].cleanup(function() {
+                    DataPool[pools][x].cleanup(function () {
                         //do nothing
                     });
                 }
             }
-            catch(err) {
+            catch (err) {
                 debug(err);
             }
         });
     }
-    catch(err) {
+    catch (err) {
         debug(err);
     }
 
