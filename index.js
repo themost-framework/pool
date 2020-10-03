@@ -507,6 +507,20 @@ class PoolAdapter {
     }
 
     /**
+     * Opens a database connection
+     */
+    openAsync() {
+        return new Promise((resolve, reject) => {
+            return this.open(err => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve();
+            });
+        });
+    }
+
+    /**
      * Closes the underlying database connection
      * @param callback {function(Error=)}
      */
@@ -529,6 +543,20 @@ class PoolAdapter {
     }
 
     /**
+     * Closes the current database connection
+     */
+    closeAsync() {
+        return new Promise((resolve, reject) => {
+            return this.close(err => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve();
+            });
+        });
+    }
+
+    /**
      * Executes a query and returns the result as an array of objects.
      * @param query {string|*}
      * @param values {*}
@@ -539,6 +567,22 @@ class PoolAdapter {
         self.open(function (err) {
             if (err) { return callback(err); }
             self.base.execute(query, values, callback);
+        });
+    }
+
+    /**
+     * @param query {*}
+     * @param values {*}
+     * @returns Promise<any>
+     */
+    executeAsync(query, values) {
+        return new Promise((resolve, reject) => {
+            return this.execute(query, values, (err, res) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve(res);
+            });
         });
     }
 
@@ -596,6 +640,27 @@ class PoolAdapter {
     }
 
     /**
+     * Begins a data transaction and executes the given function
+     * @param func {Function}
+     */
+    executeInTransactionAsync(func) {
+        return new Promise((resolve, reject) => {
+            return this.executeInTransaction((callback) => {
+                return func.call(this).then(res => {
+                    return callback(null, res);
+                }).catch(err => {
+                    return callback(err);
+                });
+            }, (err, res) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve(res);
+            });
+        });
+    }
+
+    /**
      *
      * @param obj {DataModelMigration|*} An Object that represents the data model scheme we want to migrate
      * @param callback {Function}
@@ -605,6 +670,21 @@ class PoolAdapter {
         self.open(function (err) {
             if (err) { return callback(err); }
             self.base.migrate(obj, callback);
+        });
+    }
+    /**
+     * 
+     * @param {*} obj 
+     * @returns {*}
+     */
+    migrateAsync(obj) {
+        return new Promise((resolve, reject) => {
+            this.migrate(obj, (err, res) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve(res);
+            });
         });
     }
 }
