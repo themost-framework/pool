@@ -3,6 +3,8 @@
   "version": "2.2.5",
   "description": "Most Web Framework Data Adapter Pool Extension",
   "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
   "scripts": {
     "test": "jasmine"
   },
