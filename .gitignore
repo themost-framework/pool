@@ -105,3 +105,8 @@ dist
 # module
 .env
 spec/db/*.db
+
+# ide
+.theia
+.vscode
+.idea
