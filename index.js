@@ -34,18 +34,6 @@ function randomHex(length) {
     return buffer.toString('hex');
 }
 
-function log(data) {
-    TraceUtils.log(data);
-    if (data.stack) {
-        TraceUtils.log(data.stack);
-    }
-}
-
-function debug(data) {
-    if (process.env.NODE_ENV === 'development')
-        log(data);
-}
-
 /**
  * @class PoolDictionary
  * @constructor
@@ -360,9 +348,9 @@ class DataPool {
             return callback(er);
         }
         const inUseKeys = _.keys(self.inUse);
-        debug(`(DataPool): Connections in use: ${inUseKeys.length}`);
+        TraceUtils.debug(`(DataPool): Connections in use: ${inUseKeys.length}`);
         if ((inUseKeys.length < self.options.size) || (self.options.size === 0)) {
-            debug("(DataPool): Creating new object in data pool.");
+            TraceUtils.debug("(DataPool): Creating new object in data pool.");
             self.newObject(function (err, result) {
                 if (err) { return callback(err); }
                 return callback(null, result);
@@ -372,7 +360,7 @@ class DataPool {
             self.queryLifetimeForObject(function (err, result) {
                 if (err) { return callback(err); }
                 if (result) { return callback(null, result); }
-                debug("(DataPool): Waiting for an object from data pool.");
+                TraceUtils.debug("(DataPool): Waiting for an object from data pool.");
                 self.waitForObject(function (err, result) {
                     if (err) { return callback(err); }
                     callback(null, result);
@@ -416,8 +404,8 @@ class DataPool {
                             listener.call(self);
                         }
                         catch (e) {
-                            log('An error occured while trying to release an unknown data adapter');
-                            log(e);
+                            TraceUtils.error('An error occured while trying to release an unknown data adapter');
+                            TraceUtils.error(e);
                             //call listener without any parameter
                             listener.call(self);
                         }
@@ -426,14 +414,14 @@ class DataPool {
             }
             else {
                 //search inUse collection
-                debug("(DataPool): Releasing object from data pool.");
+                TraceUtils.debug("(DataPool): Releasing object from data pool.");
                 const used = this.inUse[obj.hashCode];
                 if (typeof used !== 'undefined') {
                     //delete used adapter
                     delete this.inUse[obj.hashCode];
                     //push data adapter to available collection
                     self.available[used.hashCode] = used;
-                    debug(`(DataPool): Object released. Connections in use ${this.inUse.length}.`);
+                    TraceUtils.debug(`(DataPool): Object released. Connections in use ${this.inUse.length}.`);
                 }
             }
             //finally exit
@@ -731,7 +719,7 @@ process.on('exit', function () {
         const keys = _.keys(DataPool[pools]);
         _.forEach(keys, function (x) {
             try {
-                log(`Cleaning up data pool (${x})`);
+                TraceUtils.debug(`(DataPool): Cleaning up data pool (${x})`);
                 if (typeof DataPool[pools][x] === 'undefined' || DataPool[pools][x] === null) { return; }
                 if (typeof DataPool[pools][x].cleanup === 'function') {
                     DataPool[pools][x].cleanup(function () {
@@ -740,12 +728,12 @@ process.on('exit', function () {
                 }
             }
             catch (err) {
-                debug(err);
+                TraceUtils.debug(err);
             }
         });
     }
     catch (err) {
-        debug(err);
+        TraceUtils.debug(err);
     }
 
 });
