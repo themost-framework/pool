@@ -1,4 +1,4 @@
-const { createInstance } = require('../index');
+const { createInstance, DataPool } = require('../index');
 const { ConfigurationBase } = require('@themost/common');
 const sqlite = require('@themost/sqlite');
 const { QueryExpression } = require('@themost/query');
@@ -65,6 +65,42 @@ describe('PoolAdapter', () => {
         // open
         await adapter.openAsync();
         expect(adapter.base).toBeTruthy();
+        // validate pool property
+        expect(adapter.base.pool).toBeTruthy();
+        expect(adapter.base.pool).toBe('test');
+        // close
+        await adapter.closeAsync();
+        expect(adapter.base).toBeFalsy();
+    });
+
+    it('should get connection from pool', async () => {
+        const adapter = createInstance(
+            {
+                "adapter": "test"
+            });
+        adapter.hasConfiguration(() => {
+            return configuration;
+        });
+        // open
+        await adapter.openAsync();
+        expect(adapter.base).toBeTruthy();
+
+        const pool = DataPool.get(adapter.base.pool);
+        expect(pool).toBeTruthy();
+        expect(pool.getObjectAsync).toBeInstanceOf(Function);
+        const newAdapter = await pool.getObjectAsync();
+        expect(newAdapter).toBeTruthy();
+        // execute a query
+        await newAdapter.migrateAsync({
+            appliesTo: Products.source,
+            add: Products.fields,
+            version: Products.version
+        });
+        const query = new QueryExpression().from('Products')
+            .select('ProductID', 'ProductName')
+        const items = await newAdapter.executeAsync(query, null);
+        expect(items).toBeTruthy();
+        await pool.releaseObjectAsync(newAdapter);
         // close
         await adapter.closeAsync();
         expect(adapter.base).toBeFalsy();

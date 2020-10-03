@@ -126,6 +126,13 @@ class DataPool {
 
     }
 
+    /**
+     * @type {string} name
+     */
+    static get(name) {
+        return DataPool[pools][name];
+    }
+
     createObject() {
         //if local adapter module has been already loaded
         if (typeof this.adapter_ !== 'undefined') {
@@ -191,6 +198,21 @@ class DataPool {
         catch (e) {
             callback(e);
         }
+    }
+
+    /**
+     * Clears data pool
+     * @returns Promise<any>
+     */
+    cleanupAsync() {
+        return new Promise((resolve, reject) => {
+            return this.cleanup((err) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve();
+            });
+        });
     }
 
     /**
@@ -370,6 +392,21 @@ class DataPool {
     }
 
     /**
+     * Gets an object from pool
+     * @returns Promise<any>
+     */
+    getObjectAsync() {
+        return new Promise((resolve, reject) => {
+            return this.getObject((err, res) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve(res);
+            });
+        });
+    }
+
+    /**
      *
      * @param {*} obj
      * @param {Function} callback
@@ -431,6 +468,22 @@ class DataPool {
             callback(e);
         }
     }
+
+    /**
+     * Releases an object back to pool
+     * @param {*} obj
+     * @returns Promise<void>
+     */
+    releaseObjectAsync(obj) {
+        return new Promise((resolve, reject) => {
+            return this.releaseObject(obj, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve();
+            });
+        });
+    }
 }
 
 /**
@@ -489,6 +542,14 @@ class PoolAdapter {
                         }
                     });
                 }
+                // assing extra property for current pool
+                Object.defineProperty(self.base, 'pool', {
+                    configurable: true,
+                    enumerable: true,
+                    writable: false,
+                    value: self.options && self.options.pool
+                });
+
                 self.base.open(callback);
             });
         }
