@@ -107,6 +107,7 @@ dist
 spec/db/*.db
 
 # ide
+.DS_Store
 .theia
 .vscode
 .idea

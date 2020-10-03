@@ -2,3 +2,7 @@ spec
 .github
 .eslintrc
 .eslintignore
+.DS_Store
+.theia
+.vscode
+.idea
