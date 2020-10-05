@@ -453,7 +453,7 @@ class DataPool {
                 //search inUse collection
                 TraceUtils.debug("(DataPool): Releasing object from data pool.");
                 const used = this.inUse[obj.hashCode];
-                if (typeof used !== 'undefined') {
+                if (used != null) {
                     //delete used adapter
                     delete this.inUse[obj.hashCode];
                     //push data adapter to available collection
@@ -483,6 +483,14 @@ class DataPool {
                 return resolve();
             });
         });
+    }
+
+    async acquire() {
+        return await this.getObjectAsync();
+    }
+
+    async release(resource) {
+        await this.releaseObjectAsync(resource);
     }
 }
 

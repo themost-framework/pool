@@ -8,7 +8,14 @@ export declare class PoolDictionary {
     unshift(): any;
 }
 
-export declare class DataPool {
+export declare interface GenericDataPool {
+    acquire(): Promise<any>;
+    release(resource: any): Promise<void>;
+}
+
+export declare class DataPool implements GenericDataPool {
+    acquire(): Promise<any>;
+    release(resource: any): Promise<void>;
     constructor(options: any);
     static get(name: string): DataPool;
     createObject(): any;
