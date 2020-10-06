@@ -358,6 +358,14 @@ function createInstance(options) {
     /**
      * @type {*}
      */
+    // upgrade from 2.2.x
+    if (typeof options.size === 'number') {
+        options.max = options.size
+    }
+    if (typeof options.timeout === 'number') {
+        options.acquireTimeoutMillis = options.timeout
+    }
+
     let pool = GenericPoolAdapter[pools][name];
     if (pool == null) {
         //create new pool with the name specified in options

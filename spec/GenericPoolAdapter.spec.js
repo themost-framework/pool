@@ -46,12 +46,16 @@ describe('PoolAdapter', () => {
     it('should create instance', () => {
         const adapter = createInstance(
             {
-                "adapter": "test"
+                "adapter": "test",
+                "size": 20
             });
         adapter.hasConfiguration(() => {
             return configuration;
         });
         expect(adapter).toBeTruthy();
+        const pool = GenericPoolAdapter.pool('test');
+        expect(pool).toBeTruthy();
+        expect(pool.max).toBe(20);
     });
 
     it('should open and close', async () => {
