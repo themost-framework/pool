@@ -31,8 +31,7 @@
     "@themost/query": ">=2.5.0 < 3"
   },
   "dependencies": {
-    "async": "0.2.10",
-    "lodash": "^4.17.4"
+    "generic-pool": "^3.7.1"
   },
   "devDependencies": {
     "@themost/common": ">=2.5.0 < 3",

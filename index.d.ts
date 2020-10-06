@@ -1,54 +1,56 @@
 // MOST Web Framework 2.0 Codename Blueshift Copyright (c) 2017-2020 THEMOST LP
 
-export declare class PoolDictionary {
-    exists(key: any): boolean;
-    push(key: any, value: any): void;
-    pop(key: any): number;
-    clear(): void;
-    unshift(): any;
+declare type GenericPoolAdapterCallback = (err?: Error) => void;
+
+export declare interface GenericPoolOptions {
+    adapter: string;
+    max?: number;
+    min?: number;
+    maxWaitingClients?: number;
+    testOnBorrow?: boolean;
+    acquireTimeoutMillis?: number;
+    fifo?: boolean;
+    priorityRange?: number;
+    autostart?: boolean;
+    evictionRunIntervalMillis?: number;
+    softIdleTimeoutMillis?: number;
+    idleTimeoutMillis?: number;
 }
 
-export declare interface GenericDataPool {
+export declare interface GenericPoolAdapterOptions {
+    name: string;
+    invariantName: string;
+    default?: boolean;
+    options: GenericPoolOptions;
+}
+
+declare interface ApplicationDataConfiguration {
+    adapters: Array<any>;
+    getAdapterType(name: string): any;
+}
+
+export declare interface GenericPool {
     acquire(): Promise<any>;
     release(resource: any): Promise<void>;
 }
 
-export declare class DataPool implements GenericDataPool {
-    acquire(): Promise<any>;
-    release(resource: any): Promise<void>;
-    constructor(options: any);
-    static get(name: string): DataPool;
-    createObject(): any;
-    cleanup(callback: (error: Error) => void): void;
-    cleanupAsync(): Promise<void>;
-    newObject(callback: (error: Error, res?: any) => void): void;
-    getObject(callback: (error: Error, res?: any) => void): void;
-    getObjectAsync(): Promise<any>;
-    releaseObject(obj: any, callback: (error: Error) => void): void;
-    releaseObjectAsync(obj: any): Promise<void>;
-}
+export declare class GenericPoolAdapter {
 
-export declare interface DataAdapterMigration {
-    add: Array<any>;
-    change?: Array<any>;
-    appliesTo: string;
-    version: string;
-}
-
-export declare class PoolAdapter {
-    open(callback: (err: Error) => void): void;
-    close(callback: (err: Error) => void): void;
+    static pool(name: string): GenericPool;
+    constructor(options: GenericPoolAdapterOptions);
+    open(callback: GenericPoolAdapterCallback): void;
     openAsync(): Promise<void>;
+    close(callback: GenericPoolAdapterCallback): void;
     closeAsync(): Promise<void>;
-    createView(name: string, query: any, callback: (err: Error) => void): void;
-    executeInTransaction(func: any, callback: (err: Error) => void): void;
+    createView(name: string, query: any, callback: GenericPoolAdapterCallback): void;
+    executeInTransaction(func: any, callback: GenericPoolAdapterCallback): void;
     executeInTransactionAsync(func: Promise<any>): Promise<any>;
-    migrate(obj: DataAdapterMigration, callback: (err: Error) => void): void;
-    migrateAsync(obj: DataAdapterMigration): Promise<void>;
+    migrate(obj: any, callback: GenericPoolAdapterCallback): void;
+    migrateAsync(obj: any): Promise<void>;
     selectIdentity(entity: string, attribute: string, callback: (err: Error, value: any) => void): void;
     execute(query: any, values: any, callback: (err: Error, value: any) => void): void;
     executeAsync(query: any, values: any): Promise<any>;
-    lastIdentity(callback: (err: Error, value: any) => void): void;
+
 }
 
-export declare function createInstance(options: any): PoolAdapter;
+export declare function createInstance(options: any): GenericPoolAdapter;

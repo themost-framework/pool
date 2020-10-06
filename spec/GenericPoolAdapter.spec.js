@@ -1,4 +1,4 @@
-const { createInstance, DataPool } = require('../index');
+const { createInstance, GenericPoolAdapter } = require('../index');
 const { ConfigurationBase } = require('@themost/common');
 const sqlite = require('@themost/sqlite');
 const { QueryExpression } = require('@themost/query');
@@ -85,10 +85,10 @@ describe('PoolAdapter', () => {
         await adapter.openAsync();
         expect(adapter.base).toBeTruthy();
 
-        const pool = DataPool.get(adapter.base.pool);
+        const pool = GenericPoolAdapter.pool(adapter.base.pool);
         expect(pool).toBeTruthy();
-        expect(pool.getObjectAsync).toBeInstanceOf(Function);
-        const newAdapter = await pool.getObjectAsync();
+        expect(pool.acquire).toBeInstanceOf(Function);
+        const newAdapter = await pool.acquire();
         expect(newAdapter).toBeTruthy();
         // execute a query
         await newAdapter.migrateAsync({
@@ -100,7 +100,7 @@ describe('PoolAdapter', () => {
             .select('ProductID', 'ProductName')
         const items = await newAdapter.executeAsync(query, null);
         expect(items).toBeTruthy();
-        await pool.releaseObjectAsync(newAdapter);
+        await pool.release(newAdapter);
         // close
         await adapter.closeAsync();
         expect(adapter.base).toBeFalsy();
