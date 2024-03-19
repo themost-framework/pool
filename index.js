@@ -2,6 +2,7 @@
 
 const { createPool } = require('generic-pool');
 const { Args, TraceUtils } = require('@themost/common');
+const { AsyncEventEmitter } = require('@themost/events');
 
 const getConfigurationMethod = Symbol('getConfiguration');
 const pools = Symbol('pools');
@@ -75,6 +76,11 @@ class GenericPoolFactory {
  * @class
  */
 class GenericPoolAdapter {
+
+    static [pools] = {};
+    static acquired = new AsyncEventEmitter();
+    static released = new AsyncEventEmitter();
+
     /**
      * @constructor
      * @property {*} base
@@ -112,7 +118,13 @@ class GenericPoolAdapter {
         }
         // get object from pool
         self.pool.acquire().then(result => {
-            TraceUtils.debug(`GenericPoolAdapter: acquire() => borrowed: ${self.pool.borrowed}, pending: ${self.pool.pending}`);
+            const { borrowed, pending } = self.pool;
+            GenericPoolAdapter.acquired.emit({
+                target: self.pool,
+                name: self.options.pool,
+                borrowed,
+                pending
+            });
             // set base adapter
             self.base = result;
             //add lastIdentity() method by assigning base.lastIdentity
@@ -175,7 +187,13 @@ class GenericPoolAdapter {
         if (this.base) {
             // return object to pool
             this.pool.release(this.base);
-            TraceUtils.debug(`GenericPoolAdapter: release() => borrowed: ${this.pool.borrowed}, pending: ${this.pool.pending}`);
+            const { borrowed, pending } = this.pool;
+            GenericPoolAdapter.released.emit({
+                target: this.pool,
+                name: this.options.pool,
+                borrowed,
+                pending
+            });
             // remove lastIdentity() method
             if (typeof this.lastIdentity === 'function') {
                 delete this.lastIdentity;
@@ -347,8 +365,6 @@ class GenericPoolAdapter {
  */
 function createInstance(options) {
     Args.check(options.adapter != null, 'Invalid argument. The target data adapter is missing.');
-    //init pool collection
-    GenericPoolAdapter[pools] = GenericPoolAdapter[pools] || {};
     //get adapter's name
     let name;
     if (typeof options.adapter === 'string') {
@@ -365,9 +381,12 @@ function createInstance(options) {
     if (typeof options.timeout === 'number') {
         options.acquireTimeoutMillis = options.timeout
     }
-
     let pool = GenericPoolAdapter[pools][name];
     if (pool == null) {
+        if (typeof options.min === 'number') {
+            TraceUtils.warn('GenericPoolAdapter: The min property is not supported and will be ignored.');
+            delete options.min;
+        }
         //create new pool with the name specified in options
         pool = createPool(new GenericPoolFactory(options), Object.assign({
             // set default max size to 25
