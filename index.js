@@ -224,6 +224,18 @@ class GenericPoolAdapter {
     }
 
     /**
+     * @param {function} callback 
+     * @returns {void}
+     */
+    tryClose(callback) {
+        // if an active transaction exists, do not close the connection
+        if (this.transaction) {
+            return callback();
+        }
+        return this.close(callback);
+    }
+
+    /**
      * Executes a query and returns the result as an array of objects.
      * @param {string|*} query
      * @param {*} values
@@ -231,11 +243,16 @@ class GenericPoolAdapter {
      */
     execute(query, values, callback) {
         const self = this;
-        self.open(function (err) {
+        return self.open(function (err) {
             if (err) {
                 return callback(err);
             }
-            self.base.execute(query, values, callback);
+            return self.base.execute(query, values, function(err, results) {
+                // try close connection
+                self.tryClose(function() {
+                    return callback(err, results);
+                });
+            });
         });
     }
 
@@ -297,14 +314,27 @@ class GenericPoolAdapter {
 
     /**
      * Begins a transactional operation by executing the given function
-     * @param fn {Function} The function to execute
+     * @param executeFunc {Function} The function to execute
      * @param callback {Function} The callback that contains the error -if any- and the results of the given operation
      */
-    executeInTransaction(fn, callback) {
+    executeInTransaction(executeFunc, callback) {
         const self = this;
-        self.open(function (err) {
-            if (err) { return callback(err); }
-            self.base.executeInTransaction(fn, callback);
+        if (self.transaction) {
+            return executeFunc.call(self, function(err) {
+                callback(err);
+            });
+        }
+        return self.open(function (err) {
+            if (err) {
+                return callback(err);
+            }
+            self.transaction = true;
+            return self.base.executeInTransaction(executeFunc, function(err) {
+                self.transaction = false;
+                return self.tryClose(function() {
+                    return callback(err);
+                });
+            });
         });
     }
 
