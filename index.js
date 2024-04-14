@@ -243,17 +243,23 @@ class GenericPoolAdapter {
      */
     execute(query, values, callback) {
         const self = this;
-        return self.open(function (err) {
-            if (err) {
-                return callback(err);
-            }
-            return self.base.execute(query, values, function(err, results) {
-                // try close connection
-                self.tryClose(function() {
-                    return callback(err, results);
+        try {
+            return self.open((err) => {
+                if (err) {
+                    return callback(err);
+                }
+                return self.base.execute(query, values, (err, results) => {
+                    // try close connection
+                    self.tryClose(() => {
+                        return callback(err, results);
+                    });
                 });
             });
-        });
+        } catch (error) {
+            self.tryClose(() => {
+                return callback(error);
+            });
+        }
     }
 
     /**
@@ -319,23 +325,27 @@ class GenericPoolAdapter {
      */
     executeInTransaction(executeFunc, callback) {
         const self = this;
-        if (self.transaction) {
-            return executeFunc.call(self, function(err) {
-                callback(err);
-            });
-        }
-        return self.open(function (err) {
-            if (err) {
-                return callback(err);
-            }
-            self.transaction = true;
-            return self.base.executeInTransaction(executeFunc, function(err) {
-                self.transaction = false;
-                return self.tryClose(function() {
+        try {
+            if (self.transaction) {
+                return executeFunc((err) => {
                     return callback(err);
                 });
+            }
+            return self.open((err) => {
+                if (err) {
+                    return callback(err);
+                }
+                self.transaction = true;
+                return self.base.executeInTransaction(executeFunc, (err) => {
+                    self.transaction = false;
+                    return self.tryClose(() => {
+                        return callback(err);
+                    });
+                });
             });
-        });
+        } catch (error) {
+            return callback(error);
+        }
     }
 
     /**
