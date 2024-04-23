@@ -5,14 +5,13 @@ const { Args, TraceUtils } = require('@themost/common');
 const { AsyncEventEmitter } = require('@themost/events');
 
 const getConfigurationMethod = Symbol('getConfiguration');
-const pools = Symbol('pools');
 
 
-/**
- * @class
- * @property {*} options
- */
 class GenericPoolFactory {
+    /**
+     * @type {import('@themost/common').DataAdapterBase}
+     */
+    _adapter = null;
     /**
      * @constructor
      * @param {GenericPoolOptions=} options
@@ -22,52 +21,68 @@ class GenericPoolFactory {
     }
 
     create() {
-        //if local adapter module has been already loaded
-        if (typeof this._adapter !== 'undefined') {
-            //create adapter instance and return
-            return this._adapter.createInstance(this.options.adapter.options);
-        }
+        return new Promise((resolve, reject) => {
+            try {
+                //if local adapter module has been already loaded
+                if (this._adapter) {
+                    //create adapter instance and return
+                    return resolve(this._adapter.createInstance(this.options.adapter.options));
+                }
 
-        this.options = this.options || {};
-        if (typeof this[getConfigurationMethod] !== 'function') {
-            throw new TypeError('Configuration getter must be a function.');
-        }
-        /**
-         * @type {ConfigurationBase}
-         */
-        let configuration = this[getConfigurationMethod]();
-        if (configuration == null) {
-            throw new TypeError('Configuration cannot be empty at this context.');
-        }
-        /**
-         * @type {ApplicationDataConfiguration}
-         */
-        let dataConfiguration = configuration.getStrategy(function DataConfigurationStrategy() {
-            //
+                this.options = this.options || {};
+                if (typeof this[getConfigurationMethod] !== 'function') {
+                    throw new TypeError('Configuration getter must be a function.');
+                }
+                /**
+                 * @type {import('@themost/common').ConfigurationBase}
+                 */
+                let configuration = this[getConfigurationMethod]();
+                if (configuration == null) {
+                    throw new TypeError('Configuration cannot be empty at this context.');
+                }
+                /**
+                 * @type {ApplicationDataConfiguration}
+                 */
+                let dataConfiguration = configuration.getStrategy(function DataConfigurationStrategy() {
+                    //
+                });
+                if (dataConfiguration == null) {
+                    throw new TypeError('Data configuration cannot be empty at this context.');
+                }
+                if (typeof dataConfiguration.getAdapterType !== 'function') {
+                    throw new TypeError('Data configuration adapter getter must be a function.');
+                }
+                let adapter = dataConfiguration.adapters.find((x) => {
+                    return x.name === this.options.adapter;
+                });
+                if (adapter == null) {
+                    throw new TypeError('Child data adapter cannot be found.');
+                }
+                this._adapter = dataConfiguration.getAdapterType(adapter.invariantName);
+                //set child adapter
+                this.options.adapter = adapter;
+                //get child adapter
+                return resolve(this._adapter.createInstance(this.options.adapter.options));
+            } catch(err) {
+                return reject(err);
+            }
         });
-        if (dataConfiguration == null) {
-            throw new TypeError('Data configuration cannot be empty at this context.');
-        }
-        if (typeof dataConfiguration.getAdapterType !== 'function') {
-            throw new TypeError('Data configuration adapter getter must be a function.');
-        }
-        let adapter = dataConfiguration.adapters.find((x) => {
-            return x.name === this.options.adapter;
-        });
-        if (adapter == null) {
-            throw new TypeError('Child data adapter cannot be found.');
-        }
-        this._adapter = dataConfiguration.getAdapterType(adapter.invariantName);
-        //set child adapter
-        this.options.adapter = adapter;
-        //get child adapter
-        return this._adapter.createInstance(this.options.adapter.options);
+        
     }
 
     destroy(adapter) {
-        if (adapter) {
-            return adapter.close();
-        }
+        return new Promise((resolve, reject) => {
+            try {
+                if (adapter) {
+                    return adapter.close(() => {
+                        return resolve();
+                    });
+                }
+                return resolve();
+            } catch (err) {
+                return reject(err);
+            }
+        });
     }
 
 }
@@ -77,7 +92,7 @@ class GenericPoolFactory {
  */
 class GenericPoolAdapter {
 
-    static [pools] = {};
+    static pools = {};
     static acquired = new AsyncEventEmitter();
     static released = new AsyncEventEmitter();
 
@@ -91,7 +106,7 @@ class GenericPoolAdapter {
         const self = this;
         Object.defineProperty(this, 'pool', {
             get: function () {
-                return GenericPoolAdapter[pools][self.options.pool];
+                return GenericPoolAdapter.pools[self.options.pool];
             },
             configurable: false,
             enumerable: false
@@ -161,7 +176,7 @@ class GenericPoolAdapter {
      * @returns {GenericPool}
      */
     static pool(name) {
-        return GenericPoolAdapter[pools][name];
+        return GenericPoolAdapter.pools[name];
     }
 
     /**
@@ -421,7 +436,7 @@ function createInstance(options) {
     if (typeof options.timeout === 'number') {
         options.acquireTimeoutMillis = options.timeout
     }
-    let pool = GenericPoolAdapter[pools][name];
+    let pool = GenericPoolAdapter.pools[name];
     if (pool == null) {
         if (typeof options.min === 'number') {
             TraceUtils.warn('GenericPoolAdapter: The min property is not supported and will be ignored.');
@@ -432,25 +447,25 @@ function createInstance(options) {
             // set default max size to 25
             max: 25
         }, options));
-        GenericPoolAdapter[pools][name] = pool;
+        GenericPoolAdapter.pools[name] = pool;
         TraceUtils.debug(`GenericPoolAdapter: createPool() => name: ${name}, min: ${pool.min}, max: ${pool.max}`);
     }
     return new GenericPoolAdapter({ pool: name });
 }
 
 process.on('exit', function () {
-    if (GenericPoolAdapter[pools] == null) {
+    if (GenericPoolAdapter.pools == null) {
         return;
     }
     try {
-        const keys = Object.keys(GenericPoolAdapter[pools]);
+        const keys = Object.keys(GenericPoolAdapter.pools);
         keys.forEach(key => {
-            if (Object.hasOwnProperty.call(GenericPoolAdapter[pools], key) === false) {
+            if (Object.hasOwnProperty.call(GenericPoolAdapter.pools, key) === false) {
                 return;
             }
             try {
                 TraceUtils.log(`GenericPoolAdapter: Cleaning up data pool ${key}`);
-                const pool = GenericPoolAdapter[pools][key];
+                const pool = GenericPoolAdapter.pools[key];
                 if (pool == null) {
                     return;
                 }

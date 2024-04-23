@@ -3,6 +3,9 @@
         "eslint:recommended",
         "plugin:node/recommended"
     ],
+    "plugins": [
+        "node"
+    ],
     "globals": {
         "describe": false,
         "it": false,
