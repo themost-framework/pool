@@ -1,8 +1,18 @@
+# test
 spec
+
+# github
 .github
+
+# eslint
 .eslintrc
 .eslintignore
+
+# ide
 .DS_Store
 .theia
 .vscode
 .idea
+
+#gitpod
+.gitpod.yml
