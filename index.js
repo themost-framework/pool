@@ -23,10 +23,11 @@ class GenericPoolFactory {
     create() {
         return new Promise((resolve, reject) => {
             try {
-                //if local adapter module has been already loaded
+                // if local adapter module has been already loaded
                 if (this._adapter) {
-                    //create adapter instance and return
-                    return resolve(this._adapter.createInstance(this.options.adapter.options));
+                    // create adapter instance and return
+                    const connection1 = this._adapter.createInstance(this.options.adapter.options)
+                    return resolve(connection1);
                 }
 
                 this.options = this.options || {};
@@ -62,7 +63,8 @@ class GenericPoolFactory {
                 //set child adapter
                 this.options.adapter = adapter;
                 //get child adapter
-                return resolve(this._adapter.createInstance(this.options.adapter.options));
+                const connection = this._adapter.createInstance(this.options.adapter.options);
+                return resolve(connection);
             } catch(err) {
                 return reject(err);
             }
@@ -243,11 +245,8 @@ class GenericPoolAdapter {
      * @returns {void}
      */
     tryClose(callback) {
-        // if an active transaction exists, do not close the connection
-        if (this.transaction) {
-            return callback();
-        }
-        return this.close(callback);
+        // for future use
+        return callback();
     }
 
     /**
