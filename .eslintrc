@@ -1,21 +1,14 @@
 {
     "extends": [
-        "eslint:recommended",
-        "plugin:node/recommended"
+        "eslint:recommended"
     ],
     "plugins": [
-        "node"
+        "node",
+        "jest"
     ],
-    "globals": {
-        "describe": false,
-        "it": false,
-        "fit": false,
-        "beforeEach": false,
-        "afterEach": false,
-        "beforeAll": false,
-        "afterAll": false,
-        "expect": false,
-        "jasmine": false
+    "env": {
+        "node": true,
+        "jest/globals": true
     },
     "parserOptions": {
         "ecmaVersion": 2020

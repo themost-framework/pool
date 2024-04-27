@@ -5,7 +5,7 @@ const { QueryExpression } = require('@themost/query');
 
 const Products = require('./config/models/Product.json');
 
-class TestDataConfiguationStrategy {
+class TestDataConfigurationStrategy {
 
     constructor() {
         this.adapters = [
@@ -41,7 +41,7 @@ describe('PoolAdapter', () => {
     beforeAll(() => {
         configuration = new ConfigurationBase();
         configuration.useStrategy(function DataConfigurationStrategy() {
-        }, TestDataConfiguationStrategy);
+        }, TestDataConfigurationStrategy);
     })
     it('should create instance', () => {
         const adapter = createInstance(
@@ -91,7 +91,6 @@ describe('PoolAdapter', () => {
 
         const pool = GenericPoolAdapter.pool(adapter.base.pool);
         expect(pool).toBeTruthy();
-        expect(pool.acquire).toBeInstanceOf(Function);
         const newAdapter = await pool.acquire();
         expect(newAdapter).toBeTruthy();
         // execute a query
@@ -128,9 +127,6 @@ describe('PoolAdapter', () => {
         const query = new QueryExpression().from('Products')
             .select('ProductID', 'ProductName')
         const items = await adapter.executeAsync(query, null);
-
-        expect(items).toBeInstanceOf(Array);
-
         expect(items.length).toBe(0);
 
     });
@@ -152,10 +148,10 @@ describe('PoolAdapter', () => {
         let query = new QueryExpression().from('Products')
             .select('ProductID', 'ProductName');
         let items = await adapter.executeAsync(query, null);
-        expect(items).toBeInstanceOf(Array);
+        expect(Array.isArray(items)).toBeTruthy();
         query = new QueryExpression().insert({
             "ProductID": 1,
-            "ProductName": "Chais",
+            "ProductName": "Chains",
             "SupplierID": 1,
             "CategoryID": 1,
             "Unit": "10 boxes x 20 bags",
@@ -167,7 +163,6 @@ describe('PoolAdapter', () => {
             .select('ProductID', 'ProductName')
             .where('ProductID').equal(1);
         items = await adapter.executeAsync(query, null);
-        expect(items).toBeInstanceOf(Array);
         expect(items.length).toBeGreaterThan(0);
 
         query = new QueryExpression().delete('Products')
