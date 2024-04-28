@@ -161,7 +161,9 @@ class GenericPoolAdapter {
             } = self.base;
             [
                 lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
-            ].filter((func) => typeof func === 'function').forEach((func) => {
+            ].filter((func) => typeof func === 'function').filter((func) => {
+                return typeof self[func.name] === 'undefined';
+            }).forEach((func) => {
                 Object.assign(self, {
                     [func.name]: func.bind(self.base)
                 });
