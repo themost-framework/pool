@@ -50,7 +50,7 @@ describe('GenericPoolAdapter', () => {
         expect(db instanceof GenericPoolAdapter).toBeTruthy();
     });
 
-    it('should get items', async () => {
+    it('should execute query', async () => {
         const items = await context.model('Product').where(
             (x) => x.category === 'Laptops'
         ).getItems();

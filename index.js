@@ -98,7 +98,8 @@ class GenericPoolAdapter {
     static pools = {};
     static acquired = new AsyncEventEmitter();
     static released = new AsyncEventEmitter();
-    opening = 0;
+    executing = 0;
+    transaction = false;
 
     /**
      * @constructor
@@ -137,9 +138,6 @@ class GenericPoolAdapter {
     open(callback) {
         const self = this;
         if (self.base) {
-            if (!self.transaction) {
-                self.opening++;
-            }
             return self.base.open((callback));
         }
         // get object from pool
@@ -175,7 +173,6 @@ class GenericPoolAdapter {
                 writable: false,
                 value: self.options && self.options.pool
             });
-            self.opening++;
             return self.base.open(callback);
         }).catch(err => {
             return callback(err);
@@ -245,10 +242,10 @@ class GenericPoolAdapter {
      * @param {function(Error=)} callback
      */
     tryClose(callback) {
-        // if opening procedures are more than 0
-        if (this.opening > 0) {
-            // decrease opening procedures
-            this.opening--;
+        // if executing procedures are more than 0
+        if (this.executing > 0) {
+            // decrease executing procedures
+            this.executing--;
         }
         // if transaction is active
         if (this.transaction) {
@@ -256,9 +253,9 @@ class GenericPoolAdapter {
             // (do not try to close connection because transaction is active and will be closed later)
             return callback();
         }
-        // if opening procedures are more than 0
-        if (this.opening > 0) {
-            // do nothing (there are still opening procedures)
+        // if executing procedures are more than 0
+        if (this.executing > 0) {
+            // do nothing (there are still executing procedures)
             return callback();
         }
         // otherwise, auto-close connection
@@ -274,9 +271,17 @@ class GenericPoolAdapter {
     execute(query, values, callback) {
         const self = this;
         try {
+            // increase executing procedures when a transaction is not active
+            // this operation is required to prevent connection auto-close during async operations
+            if (!self.transaction) {
+                self.executing++;
+            }
             return self.open((err) => {
                 if (err) {
-                    return callback(err);
+                    // try to close connection to release connection immediately
+                    self.tryClose(() => {
+                        return callback(err);
+                    });
                 }
                 return self.base.execute(query, values, (err, results) => {
                     // try close connection
