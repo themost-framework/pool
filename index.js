@@ -153,22 +153,19 @@ class GenericPoolAdapter {
             });
             // set base adapter
             self.base = result;
-            //add lastIdentity() method by assigning base.lastIdentity
-            if (self.base && typeof self.base.lastIdentity === 'function') {
+
+            // implement methods
+            // noinspection JSUnresolvedReference
+            const {
+                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
+            } = self.base;
+            [
+                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
+            ].filter((func) => typeof func === 'function').forEach((func) => {
                 Object.assign(self, {
-                    lastIdentity(callback) {
-                        return this.base.lastIdentity(callback);
-                    }
+                    [func.name]: func.bind(self.base)
                 });
-            }
-            //add nextIdentity() method by assigning base.nextIdentity
-            if (self.base && typeof self.base.nextIdentity === 'function') {
-                Object.assign(self, {
-                    nextIdentity(entity, attribute, callback) {
-                        return this.base.nextIdentity(entity, attribute, callback);
-                    }
-                });
-            }
+            });
             // assign extra property for current pool
             Object.defineProperty(self.base, 'pool', {
                 configurable: true,
@@ -221,14 +218,6 @@ class GenericPoolAdapter {
                 borrowed,
                 pending
             });
-            // remove lastIdentity() method
-            if (typeof this.lastIdentity === 'function') {
-                delete this.lastIdentity;
-            }
-            // remove nextIdentity() method
-            if (typeof this.nextIdentity === 'function') {
-                delete this.nextIdentity;
-            }
             // destroy local object
             delete this.base;
         }

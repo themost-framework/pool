@@ -139,4 +139,11 @@ describe('GenericPoolAdapter', () => {
         expect(db.base).toBeFalsy();
     });
 
+    it('should use method from base connection', async () => {
+        await context.db.openAsync();
+        const columns = await context.db.table('ProductBase').columnsAsync();
+        expect(columns).toBeTruthy();
+        expect(columns.length).toBeTruthy();
+    });
+
 });
