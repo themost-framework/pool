@@ -9,15 +9,12 @@ const getConfigurationMethod = Symbol('getConfiguration');
 
 class GenericPoolFactory {
     /**
-     * @type {import('@themost/common').DataAdapterBase}
-     */
-    _adapter = null;
-    /**
      * @constructor
      * @param {GenericPoolOptions=} options
      */
     constructor(options) {
         this.options = Object.assign({}, options);
+        this._adapter = null;
     }
 
     create() {
@@ -72,6 +69,10 @@ class GenericPoolFactory {
         
     }
 
+    /**
+     * @param adapter
+     * @returns {Promise<void>}
+     */
     destroy(adapter) {
         return new Promise((resolve, reject) => {
             try {
@@ -97,6 +98,7 @@ class GenericPoolAdapter {
     static pools = {};
     static acquired = new AsyncEventEmitter();
     static released = new AsyncEventEmitter();
+    opening = 0;
 
     /**
      * @constructor
@@ -121,7 +123,11 @@ class GenericPoolAdapter {
      * @param {Function} getConfigurationFunc
      */
     hasConfiguration(getConfigurationFunc) {
-        this.pool._factory[getConfigurationMethod] = getConfigurationFunc;
+        /**
+         * @type {{_factory: *}}
+         */
+        const { pool } = this;
+        pool._factory[getConfigurationMethod] = getConfigurationFunc;
     }
 
     /**
@@ -131,7 +137,10 @@ class GenericPoolAdapter {
     open(callback) {
         const self = this;
         if (self.base) {
-            return self.base.open(callback);
+            if (!self.transaction) {
+                self.opening++;
+            }
+            return self.base.open((callback));
         }
         // get object from pool
         self.pool.acquire().then(result => {
@@ -160,13 +169,14 @@ class GenericPoolAdapter {
                     }
                 });
             }
-            // assing extra property for current pool
+            // assign extra property for current pool
             Object.defineProperty(self.base, 'pool', {
                 configurable: true,
                 enumerable: true,
                 writable: false,
                 value: self.options && self.options.pool
             });
+            self.opening++;
             return self.base.open(callback);
         }).catch(err => {
             return callback(err);
@@ -241,12 +251,27 @@ class GenericPoolAdapter {
     }
 
     /**
-     * @param {function} callback 
-     * @returns {void}
+     * @param {function(Error=)} callback
      */
     tryClose(callback) {
-        // for future use
-        return callback();
+        // if opening procedures are more than 0
+        if (this.opening > 0) {
+            // decrease opening procedures
+            this.opening--;
+        }
+        // if transaction is active
+        if (this.transaction) {
+            // do nothing
+            // (do not try to close connection because transaction is active and will be closed later)
+            return callback();
+        }
+        // if opening procedures are more than 0
+        if (this.opening > 0) {
+            // do nothing (there are still opening procedures)
+            return callback();
+        }
+        // otherwise, auto-close connection
+        return this.close(callback);
     }
 
     /**
@@ -294,7 +319,7 @@ class GenericPoolAdapter {
 
     /**
      * Executes an operation against database and returns the results.
-     * @param batch {*}
+     * @param _batch {*}
      * @param callback {Function=}
      */
     executeBatch(_batch, callback) {
@@ -321,7 +346,7 @@ class GenericPoolAdapter {
     /**
      * Creates a database view if the current data adapter supports views
      * @param {string} name A string that represents the name of the view to be created
-     * @param {QueryExpression} query The query expression that represents the database vew
+     * @param {import('@themost/query').QueryExpression} query The query expression that represents the database vew
      * @param {Function} callback A callback function to be called when operation will be completed.
      */
     createView(name, query, callback) {
@@ -348,6 +373,12 @@ class GenericPoolAdapter {
             return self.open((err) => {
                 if (err) {
                     return callback(err);
+                }
+                // validate transaction during async operation
+                if (self.transaction) {
+                    return executeFunc((err) => {
+                        return callback(err);
+                    });
                 }
                 self.transaction = true;
                 return self.base.executeInTransaction(executeFunc, (err) => {
@@ -426,14 +457,15 @@ function createInstance(options) {
     }
     Args.check(name != null, 'Invalid argument. The target data adapter name is missing.');
     /**
-     * @type {*}
+     * @type {{size:number=,timeout:number=}|*}
      */
+    const testOptions = options;
     // upgrade from 2.2.x
-    if (typeof options.size === 'number') {
-        options.max = options.size
+    if (typeof testOptions.size === 'number') {
+        options.max = testOptions.size;
     }
-    if (typeof options.timeout === 'number') {
-        options.acquireTimeoutMillis = options.timeout
+    if (typeof testOptions.timeout === 'number') {
+        options.acquireTimeoutMillis = testOptions.timeout;
     }
     let pool = GenericPoolAdapter.pools[name];
     if (pool == null) {

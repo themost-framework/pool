@@ -1,174 +1,142 @@
 const { createInstance, GenericPoolAdapter } = require('../index');
-const { ConfigurationBase } = require('@themost/common');
-const sqlite = require('@themost/sqlite');
-const { QueryExpression } = require('@themost/query');
+const { getApplication } = require('@themost/test');
+const { DataConfigurationStrategy, DataCacheStrategy} = require('@themost/data');
+require('@themost/promise-sequence');
 
-const Products = require('./config/models/Product.json');
-
-class TestDataConfigurationStrategy {
-
-    constructor() {
-        this.adapters = [
-            {
-                "name": "test", "invariantName": "sqlite",
-                "options": {
-                    "database": "spec/db/test.db"
+describe('GenericPoolAdapter', () => {
+    /**
+     * @type {import('@themost/express').ExpressDataContext}
+     */
+    let context;
+    beforeAll(() => {
+        const container = getApplication();
+        /**
+         * @type {import('@themost/express').ExpressDataApplication}
+         */
+        const app = container.get('ExpressDataApplication');
+        const conf = app.getConfiguration().getStrategy(DataConfigurationStrategy);
+        conf.adapters.unshift({
+            default: true,
+            name: 'test+pool',
+            invariantName: 'pool',
+            options: {
+                adapter: 'test',
+                size: 20
+            }
+        });
+        Object.assign(conf.adapterTypes, {
+            pool: {
+                invariantName: 'pool',
+                name: 'Connection pooling adapter',
+                createInstance: (options) => {
+                    return createInstance(options);
                 }
             }
-        ]
-        this.adapterTypes = [
-            {
-                invariantName: 'sqlite',
-                adapterType: sqlite
-            }
-        ]
-
-    }
-
-    getAdapterType(invariantName) {
-        const find = this.adapterTypes.find((x) => {
-            return x.invariantName === invariantName;
         });
-        if (find == null) {
-            return;
+        context = app.createContext();
+    });
+    afterAll(async () => {
+        await context.finalizeAsync();
+        /**
+         * @type {DataCacheStrategy|*}
+         */
+        const service = context.application.getConfiguration().getStrategy(DataCacheStrategy);
+        if (typeof service.finalize === 'function') {
+            await service.finalize();
         }
-        return find.adapterType;
-    }
-}
-
-describe('PoolAdapter', () => {
-    let configuration;
-    beforeAll(() => {
-        configuration = new ConfigurationBase();
-        configuration.useStrategy(function DataConfigurationStrategy() {
-        }, TestDataConfigurationStrategy);
-    })
+    });
     it('should create instance', () => {
-        const adapter = createInstance(
-            {
-                "adapter": "test",
-                "size": 20
-            });
-        adapter.hasConfiguration(() => {
-            return configuration;
-        });
-        expect(adapter).toBeTruthy();
-        const pool = GenericPoolAdapter.pool('test');
-        expect(pool).toBeTruthy();
-        expect(pool.max).toBe(20);
+        const db = context.db;
+        expect(db instanceof GenericPoolAdapter).toBeTruthy();
     });
 
-    it('should open and close', async () => {
-        const adapter = createInstance(
-            {
-                "adapter": "test"
-            });
-        adapter.hasConfiguration(() => {
-            return configuration;
-        });
-        // open
-        await adapter.openAsync();
-        expect(adapter.base).toBeTruthy();
-        // validate pool property
-        expect(adapter.base.pool).toBeTruthy();
-        expect(adapter.base.pool).toBe('test');
-        // close
-        await adapter.closeAsync();
-        expect(adapter.base).toBeFalsy();
-    });
-
-    it('should get connection from pool', async () => {
-        const adapter = createInstance(
-            {
-                "adapter": "test"
-            });
-        adapter.hasConfiguration(() => {
-            return configuration;
-        });
-        // open
-        await adapter.openAsync();
-        expect(adapter.base).toBeTruthy();
-
-        const pool = GenericPoolAdapter.pool(adapter.base.pool);
-        expect(pool).toBeTruthy();
-        const newAdapter = await pool.acquire();
-        expect(newAdapter).toBeTruthy();
-        // execute a query
-        await newAdapter.migrateAsync({
-            appliesTo: Products.source,
-            add: Products.fields,
-            version: Products.version
-        });
-        const query = new QueryExpression().from('Products')
-            .select('ProductID', 'ProductName')
-        const items = await newAdapter.executeAsync(query, null);
+    it('should get items', async () => {
+        const items = await context.model('Product').where(
+            (x) => x.category === 'Laptops'
+        ).getItems();
         expect(items).toBeTruthy();
-        await pool.release(newAdapter);
-        // close
-        await adapter.closeAsync();
-        expect(adapter.base).toBeFalsy();
+        /**
+         * @type {GenericPoolAdapter|*}
+         */
+        const db = context.db;
+        expect(db.base).toBeFalsy();
     });
 
-    it('should create table', async () => {
-        const adapter = createInstance(
-            {
-                "adapter": "test"
-            });
-        adapter.hasConfiguration(() => {
-            return configuration;
-        });
-
-        await adapter.migrateAsync({
-            appliesTo: Products.source,
-            add: Products.fields,
-            version: Products.version
-        });
-
-        const query = new QueryExpression().from('Products')
-            .select('ProductID', 'ProductName')
-        const items = await adapter.executeAsync(query, null);
-        expect(items.length).toBe(0);
-
+    it('should execute queries in sequence', async () => {
+        const [laptops, smartphones] = await Promise.sequence([
+            () => context.model('Product').where(
+                (x) => x.category === 'Laptops'
+            ).getItems(),
+            () => context.model('Product').where(
+                (x) => x.category === 'Smartphones'
+            ).getItems()
+        ]);
+        expect(laptops).toBeTruthy();
+        expect(smartphones).toBeTruthy();
+        /**
+         * @type {GenericPoolAdapter|*}
+         */
+        const db = context.db;
+        expect(db.base).toBeFalsy();
     });
 
-    it('should execute query', async () => {
-        const adapter = createInstance(
-            {
-                "adapter": "test"
-            });
-        adapter.hasConfiguration(() => {
-            return configuration;
+    it('should execute queries in parallel', async () => {
+        const [laptops, desktops] = await Promise.all([
+            context.model('Product').where(
+                (x) => x.category === 'Laptops'
+            ).getItems(),
+            context.model('Product').where(
+                (x) => x.category === 'Desktops'
+            ).getItems()
+        ]);
+        expect(laptops).toBeTruthy();
+        expect(desktops).toBeTruthy();
+        /**
+         * @type {GenericPoolAdapter|*}
+         */
+        const db = context.db;
+        expect(db.base).toBeFalsy();
+    });
+
+    it('should execute with error', async () => {
+        // noinspection JSUnresolvedReference
+        await expect(context.model('Product').where(
+            (x) => x.otherCategory === 'Laptops'
+        ).getItems()).rejects.toBeTruthy();
+        /**
+         * @type {GenericPoolAdapter|*}
+         */
+        const db = context.db;
+        expect(db.base).toBeFalsy();
+    });
+
+    it('should use executeInTransaction', async () => {
+        await context.db.executeInTransactionAsync(async () => {
+            const items = await context.model('Product').where(
+                (x) => x.category === 'Laptops'
+            ).getItems();
+            expect(items).toBeTruthy();
         });
+        /**
+         * @type {GenericPoolAdapter|*}
+         */
+        const db = context.db;
+        expect(db.base).toBeFalsy();
+    });
 
-        await adapter.migrateAsync({
-            appliesTo: Products.source,
-            add: Products.fields,
-            version: Products.version
-        });
-        let query = new QueryExpression().from('Products')
-            .select('ProductID', 'ProductName');
-        let items = await adapter.executeAsync(query, null);
-        expect(Array.isArray(items)).toBeTruthy();
-        query = new QueryExpression().insert({
-            "ProductID": 1,
-            "ProductName": "Chains",
-            "SupplierID": 1,
-            "CategoryID": 1,
-            "Unit": "10 boxes x 20 bags",
-            "Price": 18.0
-        }).into('Products');
-        await adapter.executeAsync(query, null);
-
-        query = new QueryExpression().from('Products')
-            .select('ProductID', 'ProductName')
-            .where('ProductID').equal(1);
-        items = await adapter.executeAsync(query, null);
-        expect(items.length).toBeGreaterThan(0);
-
-        query = new QueryExpression().delete('Products')
-            .where('ProductID').equal(1);
-        await adapter.executeAsync(query, null);
-
+    it('should use executeInTransaction with error', async () => {
+        await expect(context.db.executeInTransactionAsync(async () => {
+            // noinspection JSUnresolvedReference
+            await context.model('Product').where(
+                (x) => x.category === 'Laptops'
+            ).getItems();
+            throw new Error('Test error');
+        })).rejects.toBeTruthy();
+        /**
+         * @type {GenericPoolAdapter|*}
+         */
+        const db = context.db;
+        expect(db.base).toBeFalsy();
     });
 
 });
