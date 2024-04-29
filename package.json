@@ -1,6 +1,6 @@
 {
   "name": "@themost/pool",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Most Web Framework connection pool adapter",
   "main": "index.js",
   "module": "index.js",
