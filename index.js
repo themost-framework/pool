@@ -141,10 +141,10 @@ class GenericPoolAdapter {
             // implement methods
             // noinspection JSUnresolvedReference
             const {
-                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
+                lastIdentity, lastIdentityAsync, nextIdentity
             } = adapter;
             [
-                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
+                lastIdentity, lastIdentityAsync, nextIdentity
             ].filter((func) => typeof func === 'function').filter((func) => {
                 return typeof this[func.name] === 'undefined';
             }).forEach((func) => {
@@ -454,6 +454,328 @@ class GenericPoolAdapter {
             });
         });
     }
+
+    /**
+     * @param name
+     */
+    table(name) {
+        const self = this;
+        return {
+            /**
+             * @param {function(Error,Boolean=)} callback
+             */
+            exists: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.table(name).exists(callback);
+                });
+            },
+            existsAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.exists((err, value) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(value);
+                    });
+                });
+            },
+            /**
+             * @param {function(Error,string=)} callback
+             */
+            version: function (callback) {
+               self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.table(name).version(callback);
+                });
+            },
+            versionAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.version((err, value) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(value);
+                    });
+                });
+            },
+            /**
+             * @param {function(Error,{name:string, ordinal:number, type:*, size:number, nullable:boolean }[]=)} callback
+             */
+            columns: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.table(name).columns(callback);
+                });
+            },
+            columnsAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.columns((err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            },
+            /**
+             * @param {Array<*>} fields
+             * @param callback
+             */
+            create: function (fields, callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.table(name).create(fields, callback);
+                });
+            },
+            createAsync: function (fields) {
+                return new Promise((resolve, reject) => {
+                    this.create(fields, (err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            },
+            /**
+             * Alters the table by adding an array of fields
+             * @param {Array<*>} fields
+             * @param callback
+             */
+            add: function (fields, callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.table(name).add(fields, callback);
+                });
+            },
+            addAsync: function (fields) {
+                return new Promise((resolve, reject) => {
+                    this.add(fields, (err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            },
+            /**
+             * Alters the table by modifying an array of fields
+             * @param {Array<*>} fields
+             * @param callback
+             */
+            change: function (fields, callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.table(name).change(fields, callback);
+                });
+            },
+            changeAsync(fields) {
+                return new Promise((resolve, reject) => {
+                    this.change(fields, (err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            }
+        }
+    }
+
+    view(name) {
+        const self = this;
+        return {
+            /**
+             * @param {function(Error,Boolean=)} callback
+             */
+            exists: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.view(name).exists(callback);
+                });
+            },
+            existsAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.exists((err, value) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(value);
+                    });
+                });
+            },
+            create: function (query, callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.view(name).create(query, callback);
+                });
+            },
+            createAsync: function (query) {
+                return new Promise((resolve, reject) => {
+                    this.create(query, (err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            },
+            /**
+             * @param {Function} callback
+             */
+            drop: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.view(name).drop(callback);
+                });
+            },
+            dropAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.drop((err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            }
+        }
+    }
+
+    database(name) {
+        const self = this;
+        return {
+            exists: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.database(name).exists(callback);
+                });
+            },
+            existsAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.exists((err, value) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(value);
+                    });
+                });
+            },
+            create: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.database(name).create(callback);
+                });
+            },
+            createAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.create((err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            }
+        }
+    }
+
+    indexes(name) {
+        const self = this;
+        return {
+            list: function (callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.indexes(name).list(callback);
+                });
+            },
+            listAsync: function () {
+                return new Promise((resolve, reject) => {
+                    this.list((err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            },
+            /**
+             * @param {string} indexName
+             * @param {Array|string} columns
+             * @param {Function} callback
+             */
+            create: function (indexName, columns, callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.indexes(name).create(indexName, columns, callback);
+                });
+            },
+            /**
+             * @param {string} indexName
+             * @param {Array|string} columns
+             */
+            createAsync(indexName, columns) {
+                return new Promise((resolve, reject) => {
+                    this.create(indexName, columns, (err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            },
+            /**
+             * @param {string} indexName
+             * @param {Function} callback
+             */
+            drop(indexName, callback) {
+                self.open(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return self.base.indexes(name).drop(indexName, callback);
+                });
+            },
+            dropAsync: function (indexName) {
+                return new Promise((resolve, reject) => {
+                    this.drop(indexName, (err, res) => {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve(res);
+                    });
+                });
+            }
+        }
+    }
+
 }
 /**
  * @param {GenericPoolOptions} options
