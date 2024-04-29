@@ -1,5 +1,7 @@
 # test
 spec
+jest.config.js
+jest.setup.js
 
 # github
 .github
