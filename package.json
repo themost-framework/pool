@@ -28,7 +28,8 @@
   "homepage": "https://github.com/themost-framework/pool",
   "peerDependencies": {
     "@themost/common": "^2",
-    "@themost/query": "^2"
+    "@themost/query": "^2",
+    "@themost/events": "^1"
   },
   "dependencies": {
     "generic-pool": "^3.9.0"

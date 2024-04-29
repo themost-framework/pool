@@ -4,9 +4,6 @@ const { createPool } = require('generic-pool');
 const { Args, TraceUtils } = require('@themost/common');
 const { AsyncEventEmitter } = require('@themost/events');
 
-const getConfigurationMethod = Symbol('getConfiguration');
-
-
 class GenericPoolFactory {
     /**
      * @constructor
@@ -15,6 +12,7 @@ class GenericPoolFactory {
     constructor(options) {
         this.options = Object.assign({}, options);
         this._adapter = null;
+        this.getConfiguration = null;
     }
 
     create() {
@@ -28,13 +26,13 @@ class GenericPoolFactory {
                 }
 
                 this.options = this.options || {};
-                if (typeof this[getConfigurationMethod] !== 'function') {
+                if (typeof this.getConfiguration !== 'function') {
                     throw new TypeError('Configuration getter must be a function.');
                 }
                 /**
                  * @type {import('@themost/common').ConfigurationBase}
                  */
-                let configuration = this[getConfigurationMethod]();
+                let configuration = this.getConfiguration();
                 if (configuration == null) {
                     throw new TypeError('Configuration cannot be empty at this context.');
                 }
@@ -128,7 +126,7 @@ class GenericPoolAdapter {
          * @type {{_factory: *}}
          */
         const { pool } = this;
-        pool._factory[getConfigurationMethod] = getConfigurationFunc;
+        pool._factory.getConfiguration = getConfigurationFunc;
     }
 
     /**
@@ -372,6 +370,9 @@ class GenericPoolAdapter {
                 }
                 // validate transaction during async operation
                 if (self.transaction) {
+                    if (self.options.disableParallelTransactions === true) {
+                        return callback(new Error('Parallel transactions detected but this operation is not not allowed based on current configuration.'));
+                    }
                     return executeFunc((err) => {
                         return callback(err);
                     });
@@ -477,7 +478,10 @@ function createInstance(options) {
         GenericPoolAdapter.pools[name] = pool;
         TraceUtils.debug(`GenericPoolAdapter: createPool() => name: ${name}, min: ${pool.min}, max: ${pool.max}`);
     }
-    return new GenericPoolAdapter({ pool: name });
+    return new GenericPoolAdapter({
+        pool: name,
+        disableParallelTransactions: !!options.disableParallelTransactions,
+    });
 }
 
 process.on('exit', function () {
@@ -491,7 +495,7 @@ process.on('exit', function () {
                 return;
             }
             try {
-                TraceUtils.log(`GenericPoolAdapter: Cleaning up data pool ${key}`);
+                TraceUtils.info(`GenericPoolAdapter: Cleaning up data pool ${key}`);
                 const pool = GenericPoolAdapter.pools[key];
                 if (pool == null) {
                     return;
