@@ -15,51 +15,55 @@ class GenericPoolFactory {
         this.getConfiguration = null;
     }
 
+    createSync() {
+        const { options } = this.options.adapter;
+        // if local adapter module has been already loaded
+        if (this._adapter) {
+            // create adapter instance and return
+            return this._adapter.createInstance(options)
+        }
+
+        this.options = this.options || {};
+        if (typeof this.getConfiguration !== 'function') {
+            throw new TypeError('Configuration getter must be a function.');
+        }
+        /**
+         * @type {import('@themost/common').ConfigurationBase}
+         */
+        let configuration = this.getConfiguration();
+        if (configuration == null) {
+            throw new TypeError('Configuration cannot be empty at this context.');
+        }
+        /**
+         * @type {ApplicationDataConfiguration}
+         */
+        let dataConfiguration = configuration.getStrategy(function DataConfigurationStrategy() {
+            //
+        });
+        if (dataConfiguration == null) {
+            throw new TypeError('Data configuration cannot be empty at this context.');
+        }
+        if (typeof dataConfiguration.getAdapterType !== 'function') {
+            throw new TypeError('Data configuration adapter getter must be a function.');
+        }
+        let adapter = dataConfiguration.adapters.find((x) => {
+            return x.name === this.options.adapter;
+        });
+        if (adapter == null) {
+            throw new TypeError('Child data adapter cannot be found.');
+        }
+        this._adapter = dataConfiguration.getAdapterType(adapter.invariantName);
+        //set child adapter
+        this.options.adapter = adapter;
+        //get child adapter
+        return this._adapter.createInstance(options);
+    }
+
     create() {
         return new Promise((resolve, reject) => {
             try {
-                // if local adapter module has been already loaded
-                if (this._adapter) {
-                    // create adapter instance and return
-                    const connection1 = this._adapter.createInstance(this.options.adapter.options)
-                    return resolve(connection1);
-                }
-
-                this.options = this.options || {};
-                if (typeof this.getConfiguration !== 'function') {
-                    throw new TypeError('Configuration getter must be a function.');
-                }
-                /**
-                 * @type {import('@themost/common').ConfigurationBase}
-                 */
-                let configuration = this.getConfiguration();
-                if (configuration == null) {
-                    throw new TypeError('Configuration cannot be empty at this context.');
-                }
-                /**
-                 * @type {ApplicationDataConfiguration}
-                 */
-                let dataConfiguration = configuration.getStrategy(function DataConfigurationStrategy() {
-                    //
-                });
-                if (dataConfiguration == null) {
-                    throw new TypeError('Data configuration cannot be empty at this context.');
-                }
-                if (typeof dataConfiguration.getAdapterType !== 'function') {
-                    throw new TypeError('Data configuration adapter getter must be a function.');
-                }
-                let adapter = dataConfiguration.adapters.find((x) => {
-                    return x.name === this.options.adapter;
-                });
-                if (adapter == null) {
-                    throw new TypeError('Child data adapter cannot be found.');
-                }
-                this._adapter = dataConfiguration.getAdapterType(adapter.invariantName);
-                //set child adapter
-                this.options.adapter = adapter;
-                //get child adapter
-                const connection = this._adapter.createInstance(this.options.adapter.options);
-                return resolve(connection);
+                const connection1 = this.createSync();
+                return resolve(connection1);
             } catch(err) {
                 return reject(err);
             }
@@ -127,6 +131,30 @@ class GenericPoolAdapter {
          */
         const { pool } = this;
         pool._factory.getConfiguration = getConfigurationFunc;
+        // try to assign prototype methods
+        if (typeof getConfigurationFunc === 'function') {
+            /**
+             * @type {GenericPoolFactory}
+             */
+            const factory = pool._factory;
+            const adapter = factory.createSync();
+            // implement methods
+            // noinspection JSUnresolvedReference
+            const {
+                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
+            } = adapter;
+            [
+                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
+            ].filter((func) => typeof func === 'function').filter((func) => {
+                return typeof this[func.name] === 'undefined';
+            }).forEach((func) => {
+                Object.assign(this, {
+                    [func.name]: function() {
+                        return func.apply(this.base, Array.from(arguments));
+                    }
+                });
+            });
+        }
     }
 
     /**
@@ -149,21 +177,6 @@ class GenericPoolAdapter {
             });
             // set base adapter
             self.base = result;
-
-            // implement methods
-            // noinspection JSUnresolvedReference
-            const {
-                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
-            } = self.base;
-            [
-                lastIdentity, lastIdentityAsync, nextIdentity, table, view, indexes
-            ].filter((func) => typeof func === 'function').filter((func) => {
-                return typeof self[func.name] === 'undefined';
-            }).forEach((func) => {
-                Object.assign(self, {
-                    [func.name]: func.bind(self.base)
-                });
-            });
             // assign extra property for current pool
             Object.defineProperty(self.base, 'pool', {
                 configurable: true,
