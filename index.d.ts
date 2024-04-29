@@ -1,6 +1,6 @@
 // MOST Web Framework 2.0 Codename Blueshift Copyright (c) 2017-2020 THEMOST LP
 
-import {ConfigurationBase} from '@themost/common';
+import {ConfigurationBase, DataAdapterDatabase, DataAdapterTable, DataAdapterView} from '@themost/common';
 import {AsyncEventEmitter} from '@themost/events';
 
 declare type GenericPoolAdapterCallback = (err?: Error) => void;
@@ -57,6 +57,9 @@ export declare class GenericPoolAdapter {
     selectIdentity(entity: string, attribute: string, callback: (err: Error, value: any) => void): void;
     execute(query: any, values: any, callback: (err: Error, value: any) => void): void;
     executeAsync(query: any, values: any): Promise<any>;
+    table(name: string): DataAdapterTable;
+    view(name: string): DataAdapterView;
+    database(name: string): DataAdapterDatabase;
 
 }
 
