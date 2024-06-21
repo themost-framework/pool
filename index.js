@@ -56,7 +56,7 @@ class GenericPoolFactory {
         //set child adapter
         this.options.adapter = adapter;
         //get child adapter
-        return this._adapter.createInstance(options);
+        return this._adapter.createInstance(adapter.options);
     }
 
     create() {
