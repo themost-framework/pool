@@ -44,6 +44,9 @@ describe('PoolAdapter', () => {
         }, TestDataConfiguationStrategy);
     })
     it('should create instance', () => {
+        GenericPoolAdapter.created.subscribe(async ({target}) => {
+            expect(target).toBeTruthy();
+        });
         const adapter = createInstance(
             {
                 "adapter": "test",
