@@ -231,11 +231,18 @@ class GenericPoolAdapter {
      */
     execute(query, values, callback) {
         const self = this;
-        self.open(function (err) {
+        void self.open(function (err) {
             if (err) {
                 return callback(err);
             }
-            self.base.execute(query, values, callback);
+            void self.base.execute(query, values, (err, results) => {
+                if (self.base.transaction) {
+                    return callback(err, results);
+                }
+                self.close(function () {
+                    return callback(err, results);
+                });
+            });
         });
     }
 
